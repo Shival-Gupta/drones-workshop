@@ -13,7 +13,7 @@ This guide will help you set up a complete simulation environment for drones usi
 You need to get the `setup.sh` script. You can clone it using:
 ```bash
 git clone https://github.com/Shival-Gupta/drones-workshop.git
-cd YourProject
+cd drones-workshop
 ```
 
 ### 2. Run the `setup.sh` Script
