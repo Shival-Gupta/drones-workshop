@@ -134,9 +134,10 @@ check_success "5"
 # Handle special configurations for WSL
 if [ "$WSL_CONFIG" == "true" ]; then
     log_step "WSL" "Applying WSL specific configurations"
-    export GAZEBO_IP=127.0.0.1
-    export DISPLAY=$(cat /etc/resolv.conf | grep nameserver | awk '{print $2}'):0 
-    export LIBGL_ALWAYS_INDIRECT=0
+    echo 'export GAZEBO_IP=127.0.0.1' >> ~/.bashrc
+    echo 'export DISPLAY=$(cat /etc/resolv.conf | grep nameserver | awk '{print $2}'):0' >> ~/.bashrc
+    echo 'export LIBGL_ALWAYS_INDIRECT=0' >> ~/.bashrc
+    source ~/.bashrc
     echo "WSL configurations applied." | tee -a "$LOG_FILE"
 fi
 
@@ -156,8 +157,10 @@ install_repo_tool() {
 
 # Step 6: Install PX4 SITL
 install_repo_tool "6" "Installing PX4 SITL" "PX4-Autopilot" "
+    echo 'export PATH=$PATH:/home/shival/.local/bin' >> ~/.bashrc 
+    source ~/.bashrc
     pip install --upgrade numpy
-    git clone https://github.com/PX4/PX4-Autopilot.git &&
+    git clone https://github.com/PX4/PX4-Autopilot.git || { echo "Error cloning PX4-Autopilot repository. Please check your internet connection and try again."; exit 1; } &&
     cd PX4-Autopilot &&
     bash ./Tools/setup/ubuntu.sh -y &&
     make px4_sitl_default gazebo
@@ -165,10 +168,10 @@ install_repo_tool "6" "Installing PX4 SITL" "PX4-Autopilot" "
 
 # Step 7: Install Ardupilot SITL and dependencies
 install_repo_tool "7" "Installing Ardupilot SITL and dependencies" "ardupilot" "
-    git clone https://github.com/ArduPilot/ardupilot.git &&
+    git clone https://github.com/ArduPilot/ardupilot.git || { echo "Error cloning ArduPilot repository. Please check your internet connection and try again."; exit 1; } &&
     cd ardupilot &&
     git checkout Copter-4.0.4 &&
-    git submodule update --init --recursive || git config --global url.https://.insteadOf git:// &&
+    git submodule update --init --recursive || { echo "Error updating submodules. Please check your internet connection and try again." && git config --global url.https://.insteadOf git:// && git submodule update --init --recursive; } &&
     Tools/environment_install/install-prereqs-ubuntu.sh -y &&
     source ~/.profile &&
     cd ~/ardupilot/ArduCopter &&
