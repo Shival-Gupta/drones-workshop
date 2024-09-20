@@ -1,6 +1,8 @@
-# Automated Drone Simulation Setup for WSL
+# Automated Drone Simulation Setup for WSL2 with Ubuntu 20.04
 
 This guide will help you set up a complete simulation environment for drones using PX4, Ardupilot, Gazebo, MAVROS, and IQ Sim on Windows Subsystem for Linux (WSL) with minimal human intervention.
+
+**Note:** If you are looking for the Ubuntu 20.04 setup guide, please visit: [Ubuntu Setup Guide](https://shivalgupta.tech/drones-workshop/)
 
 ## Requirements
 
@@ -13,7 +15,7 @@ This guide will help you set up a complete simulation environment for drones usi
 ### 1. Install WSL2 and Ubuntu
 Follow the official guide to install WSL2 and set up Ubuntu 20.04.
 
-### 2. Clone the repository (if not done already)
+### 2. Clone the Repository (if not done already)
 You need to get the `wsl/setup.sh` script. You can clone it using:
 ```bash
 git clone https://github.com/Shival-Gupta/drones-workshop.git
