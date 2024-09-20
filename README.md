@@ -12,7 +12,7 @@ This guide will help you set up a complete simulation environment for drones usi
 ### 1. Clone the repository (if not done already)
 You need to get the `setup.sh` script. You can clone it using:
 ```bash
-git clone https://github.com/YourRepo/YourProject.git
+git clone https://github.com/Shival-Gupta/drones-workshop.git
 cd YourProject
 ```
 
@@ -96,4 +96,5 @@ To monitor telemetry data:
 - PX4 Autopilot: [PX4 Official Site](https://px4.io/)
 - ArduPilot: [ArduPilot Official Site](https://ardupilot.org/)
 - QGroundControl: [QGroundControl Download](https://qgroundcontrol.com/)
+- ROS in WSL2: [Youtube Tutorial](https://youtu.be/DW7l9LHdK5c?si=ltJt0esJWsJj9lDu)
 
