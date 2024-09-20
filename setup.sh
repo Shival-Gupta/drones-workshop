@@ -100,7 +100,9 @@ fi
 
 # Step 1: Add necessary apt repositories
 log_step "1" "Adding apt repositories"
-sudo apt-add-repository -y universe multiverse restricted
+sudo apt-add-repository -y universe
+sudo apt-add-repository -y multiverse
+sudo apt-add-repository -y restricted
 check_success "1"
 
 # Step 2: Update repositories and upgrade packages
