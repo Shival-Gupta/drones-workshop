@@ -23,6 +23,7 @@ Set the default version to WSL 2 and install Ubuntu 20.04:
 ```bash
 wsl --set-default-version 2
 wsl --install -d Ubuntu-20.04
+
 ```
 
 ### Step 1. Clone the Repository
@@ -31,6 +32,7 @@ First, clone the repository to get access to the setup script:
 ```bash
 git clone https://github.com/Shival-Gupta/drones-workshop.git
 cd drones-workshop
+
 ```
 
 ### Step 2. Run the `setup.sh` Script
@@ -41,6 +43,7 @@ Make the script executable and run it:
 ```bash
 chmod +x setup.sh
 ./setup.sh
+
 ```
 
 #### Options
@@ -57,6 +60,7 @@ After installation, it's recommended to verify that everything is set up correct
 ```bash
 chmod +x verify.sh
 ./verify.sh
+
 ```
 
 ### Step 4. Launch PX4 SITL with Gazebo
@@ -65,6 +69,7 @@ After the installation, you can run PX4 SITL (Software In The Loop) with Gazebo:
 ```bash
 cd ~/PX4-Autopilot
 make px4_sitl_default gazebo
+
 ```
 
 ### Step 5. Launch Ardupilot SITL with Gazebo
@@ -73,11 +78,13 @@ To run Ardupilot with Gazebo:
 1. Launch Gazebo with the Ardupilot-Gazebo plugin:
    ```bash
    gazebo --verbose ~/ardupilot_gazebo/worlds/iris_arducopter_runway.world
+
    ```
 2. In another terminal, launch Ardupilot SITL:
    ```bash
    cd ~/ardupilot/ArduCopter
    sim_vehicle.py -v ArduCopter -f gazebo-iris --console
+
    ```
 
 ### Step 6. Running MAVROS and IQ Sim
@@ -86,15 +93,18 @@ To launch IQ Sim and get telemetry data from the drone:
 1. In one terminal, launch the runway simulation:
    ```bash
    roslaunch iq_sim runway.launch
+   
    ```
 2. In another terminal, run Ardupilot SITL:
    ```bash
    cd ~
    ./startsitl.sh
+
    ```
 3. Open QGroundControl:
    ```bash
    ./QGroundControl.AppImage
+
    ```
 
 ### Step 7. Using MAVROS and Checking Telemetry Data
@@ -103,16 +113,19 @@ To monitor telemetry data:
 1. Start MAVROS:
    ```bash
    roslaunch iq_sim apm.launch
+
    ```
 2. View telemetry data from FCU:
    ```bash
    rostopic echo /mavros/global_position/local
+
    ```
 3. Interact with MAVProxy to control the drone:
    ```bash
    mode guided
    arm throttle
    takeoff 10
+
    ```
 
 ## Troubleshooting
@@ -121,6 +134,7 @@ To monitor telemetry data:
 - Verify environment variables are set correctly by running:
   ```bash
   source ~/.bashrc
+  
   ```
 - Check the verification log (`verify.log`) for details about your installation status.
 
