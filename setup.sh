@@ -49,7 +49,7 @@ for arg in "$@"; do
         --full-installation) FULL_INSTALL="true" ;;
         --wsl) WSL_CONFIG="true" ;;
         --help) usage ;;
-        *) echo "Unknown argument: $arg"; usage ;;
+        # *) echo "Unknown argument: $arg"; usage ;;  # Remove this line
     esac
 done
 
@@ -120,6 +120,7 @@ if ! check_package "ros-noetic-desktop-full"; then
     sudo sh -c 'echo "deb http://packages.ros.org/ros/ubuntu $(lsb_release -sc) main" > /etc/apt/sources.list.d/ros-latest.list'
     sudo apt install -y curl && curl -s https://raw.githubusercontent.com/ros/rosdistro/master/ros.asc | sudo apt-key add -
     sudo apt update && sudo apt install -y ros-noetic-desktop-full
+    source /opt/ros/noetic/setup.bash 
 fi
 check_success "4"
 
@@ -168,7 +169,7 @@ install_repo_tool "6" "Installing PX4 SITL" "PX4-Autopilot" <<EOF
     fi
     git clone https://github.com/PX4/PX4-Autopilot.git --recursive || { 
         echo "Error cloning PX4-Autopilot repository. Please check your internet connection and try again."
-        exit 1
+        # exit 1
     } 
     cd PX4-Autopilot &&
     bash ./Tools/setup/ubuntu.sh -y
@@ -183,8 +184,10 @@ install_repo_tool "7" "Installing Ardupilot SITL and dependencies" "ardupilot" <
     fi
     git clone https://github.com/ArduPilot/ardupilot.git --recursive || { 
         echo "Error cloning ArduPilot repository. Please check your internet connection and try again."
-        exit 1
-    } &&
+        # exit 1
+    } 
+    # Ensure the ardupilot directory exists
+    mkdir -p ardupilot &&
     cd ardupilot &&
     git checkout Copter-4.0.4 &&
     git submodule update --init --recursive || { 
@@ -192,7 +195,7 @@ install_repo_tool "7" "Installing Ardupilot SITL and dependencies" "ardupilot" <
         git config --global url."https://".insteadOf git://
         git submodule update --init --recursive || { 
             echo "Error updating submodules even after switching to https. Please check your internet connection and try again."
-            exit 1
+            # exit 1
         } 
     } &&
     Tools/environment_install/install-prereqs-ubuntu.sh -y &&
@@ -213,7 +216,7 @@ install_repo_tool "8" "Setting up Gazebo and Ardupilot-Gazebo Plugin" "ardupilot
     fi
     git clone https://github.com/khancyr/ardupilot_gazebo.git || { 
         echo "Error cloning ardupilot_gazebo repository. Please check your internet connection and try again."
-        exit 1
+        # exit 1
     } &&
     cd ardupilot_gazebo &&
     mkdir build && cd build &&
@@ -227,15 +230,29 @@ EOF
 
 # Step 9: Install MAVROS, MAVLink, and IQ Sim
 install_repo_tool "9" "Installing MAVROS, MAVLink, and IQ Sim" "" <<EOF
-    sudo apt install -y ros-noetic-mavros ros-noetic-mavros-extras ros-noetic-mavlink
+    for i in {1..3}; do # Retry up to 3 times
+        if sudo apt install -y ros-noetic-mavros ros-noetic-mavros-extras ros-noetic-mavlink; then
+            break  # Exit the loop if successful
+        else
+            echo "Attempt $i failed. Retrying MAVROS installation..."
+            sleep 5  # Wait for a few seconds before retrying
+        fi
+    done
 EOF
 
 # Step 10: Install QGroundControl
 install_repo_tool "10" "Installing QGroundControl" "" <<EOF
     if ! check_package "qgroundcontrol"; then
-        sudo add-apt-repository ppa:qgroundcontrol/ppa -y &&
-        sudo apt update &&
-        sudo apt install -y qgroundcontrol
+        for i in {1..3}; do
+            if sudo add-apt-repository ppa:qgroundcontrol/ppa -y &&
+               sudo apt update &&
+               sudo apt install -y qgroundcontrol; then
+                break
+            else
+                echo "Attempt $i failed. Retrying QGroundControl installation..."
+                sleep 5
+            fi
+        done
     else
         echo "QGroundControl is already installed, skipping..." | tee -a "$LOG_FILE"
     fi
