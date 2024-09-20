@@ -33,6 +33,7 @@ usage() {
     echo "  --full-installation   Automatically install all tools without prompts."
     echo "  --wsl                 Special configurations for Windows Subsystem for Linux."
     echo "  --help                Show this help message."
+    echo "  -x                    Enable verbose logging."
     exit 1
 }
 
@@ -41,6 +42,8 @@ ACTION="install"
 FORCE_INSTALL=""
 FULL_INSTALL=""
 WSL_CONFIG=""
+VERBOSE=""
+
 for arg in "$@"; do
     case $arg in
         --uninstall) ACTION="uninstall" ;;
@@ -49,7 +52,8 @@ for arg in "$@"; do
         --full-installation) FULL_INSTALL="true" ;;
         --wsl) WSL_CONFIG="true" ;;
         --help) usage ;;
-        # *) echo "Unknown argument: $arg"; usage ;;  # Remove this line
+        -x) VERBOSE="true" ;;
+        *) echo "Unknown argument: $arg"; usage ;;
     esac
 done
 
@@ -146,11 +150,25 @@ fi
 install_repo_tool() {
     if [ "$ACTION" != "uninstall" ]; then
         log_step "$1" "$2"
-        if [ ! -d "$3" ]; then
-            cd ~ 
-            eval <<"EOF"
-$4
-EOF
+        if [ ! -d "$3" ] || [ -z "$3" ]; then # Check if directory exists OR if it's an empty string
+            cd ~
+            if [ "$VERBOSE" == "true" ]; then
+                set -x  # Enable verbose output if -x flag is provided
+            fi
+            # Capture output and run in background if possible
+            (eval "$4" > step_${1}_output.txt 2>&1 &)
+            
+            if [ "$VERBOSE" == "true" ]; then
+                set +x  # Disable verbose output after the eval block
+            fi
+
+            # Check for specific success criteria or timeout (adjust as needed)
+            if [ -n "$3" ]; then 
+                timeout 600 tail -f step_${1}_output.txt | grep -q "Installation of $3 failed" && {
+                    echo "Error: Installation of $3 failed. Check step_${1}_output.txt for details." | tee -a "$LOG_FILE"
+                    exit 1
+                }
+            fi
         else
             echo "$3 already exists, skipping installation." | tee -a "$LOG_FILE"
         fi
@@ -158,9 +176,9 @@ EOF
     fi
 }
 
+
 # Step 6: Install PX4 SITL
 install_repo_tool "6" "Installing PX4 SITL" "PX4-Autopilot" <<EOF
-    # echo "export PATH=$PATH:/home/shival/.local/bin" >> ~/.bashrc 
     source ~/.bashrc
     pip install --upgrade numpy
     # Check if git is already installed before cloning
@@ -169,11 +187,17 @@ install_repo_tool "6" "Installing PX4 SITL" "PX4-Autopilot" <<EOF
     fi
     git clone https://github.com/PX4/PX4-Autopilot.git --recursive || { 
         echo "Error cloning PX4-Autopilot repository. Please check your internet connection and try again."
-        # exit 1
+        exit 1
     } 
     cd PX4-Autopilot &&
-    bash ./Tools/setup/ubuntu.sh -y
-    # make px4_sitl_default gazebo
+    bash ./Tools/setup/ubuntu.sh -y &&
+    # Run 'make' in the background and capture output
+    (make px4_sitl_default gazebo > make_output.txt 2>&1 &) 
+    # Check if 'make' completed successfully after a timeout (adjust as needed)
+    timeout 600 tail -f make_output.txt | grep -q "build completed" || { 
+        echo "Error: PX4 SITL build did not complete successfully within the timeout. Check make_output.txt for details." | tee -a "$LOG_FILE"
+        exit 1
+    }
 EOF
 
 # Step 7: Install Ardupilot SITL and dependencies
@@ -184,7 +208,7 @@ install_repo_tool "7" "Installing Ardupilot SITL and dependencies" "ardupilot" <
     fi
     git clone https://github.com/ArduPilot/ardupilot.git --recursive || { 
         echo "Error cloning ArduPilot repository. Please check your internet connection and try again."
-        # exit 1
+        exit 1
     } 
     # Ensure the ardupilot directory exists
     mkdir -p ardupilot &&
@@ -195,7 +219,7 @@ install_repo_tool "7" "Installing Ardupilot SITL and dependencies" "ardupilot" <
         git config --global url."https://".insteadOf git://
         git submodule update --init --recursive || { 
             echo "Error updating submodules even after switching to https. Please check your internet connection and try again."
-            # exit 1
+            exit 1
         } 
     } &&
     Tools/environment_install/install-prereqs-ubuntu.sh -y &&
@@ -216,12 +240,17 @@ install_repo_tool "8" "Setting up Gazebo and Ardupilot-Gazebo Plugin" "ardupilot
     fi
     git clone https://github.com/khancyr/ardupilot_gazebo.git || { 
         echo "Error cloning ardupilot_gazebo repository. Please check your internet connection and try again."
-        # exit 1
+        exit 1
     } &&
     cd ardupilot_gazebo &&
     mkdir build && cd build &&
     cmake .. &&
-    make -j4 &&
+    # Capture 'make' output and run in background
+    (make -j4 > make_output_8.txt 2>&1 &)
+    timeout 600 tail -f make_output_8.txt | grep -q "Error" && { 
+        echo "Error: Make failed in Step 8. Check make_output_8.txt for details." | tee -a "$LOG_FILE"
+        exit 1
+    }
     sudo make install &&
     echo 'source /usr/share/gazebo/setup.sh' >> ~/.bashrc &&
     echo 'export GAZEBO_MODEL_PATH=~/ardupilot_gazebo/models' >> ~/.bashrc &&
@@ -229,6 +258,7 @@ install_repo_tool "8" "Setting up Gazebo and Ardupilot-Gazebo Plugin" "ardupilot
 EOF
 
 # Step 9: Install MAVROS, MAVLink, and IQ Sim
+# No directory to check for, so pass an empty string as the third argument
 install_repo_tool "9" "Installing MAVROS, MAVLink, and IQ Sim" "" <<EOF
     for i in {1..3}; do # Retry up to 3 times
         if sudo apt install -y ros-noetic-mavros ros-noetic-mavros-extras ros-noetic-mavlink; then
@@ -238,9 +268,15 @@ install_repo_tool "9" "Installing MAVROS, MAVLink, and IQ Sim" "" <<EOF
             sleep 5  # Wait for a few seconds before retrying
         fi
     done
+    # Check if the packages were installed successfully
+    if ! dpkg -l | grep -q "ros-noetic-mavros ros-noetic-mavros-extras ros-noetic-mavlink"; then
+        echo "Error: Installation of MAVROS packages failed." | tee -a "$LOG_FILE"
+        exit 1
+    fi
 EOF
 
 # Step 10: Install QGroundControl
+# No directory to check for, so pass an empty string as the third argument
 install_repo_tool "10" "Installing QGroundControl" "" <<EOF
     if ! check_package "qgroundcontrol"; then
         for i in {1..3}; do
@@ -253,7 +289,19 @@ install_repo_tool "10" "Installing QGroundControl" "" <<EOF
                 sleep 5
             fi
         done
+        # Check if QGroundControl was installed successfully
+        if ! check_package "qgroundcontrol"; then
+            echo "Error: Installation of QGroundControl failed." | tee -a "$LOG_FILE"
+            exit 1
+        fi
     else
         echo "QGroundControl is already installed, skipping..." | tee -a "$LOG_FILE"
     fi
 EOF
+
+# Final logging
+echo "========================================" | tee -a "$LOG_FILE"
+echo "All steps completed successfully!" | tee -a "$LOG_FILE"
+echo "========================================"
+
+echo "Installation completed. Check the log file $LOG_FILE for details."
