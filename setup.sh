@@ -135,7 +135,7 @@ check_success "5"
 if [ "$WSL_CONFIG" == "true" ]; then
     log_step "WSL" "Applying WSL specific configurations"
     echo 'export GAZEBO_IP=127.0.0.1' >> ~/.bashrc
-    echo 'export DISPLAY=$(cat /etc/resolv.conf | grep nameserver | awk '{print $2}'):0' >> ~/.bashrc
+    echo "export DISPLAY=\$(cat /etc/resolv.conf | grep nameserver | awk '{print \$2}'):0" >> ~/.bashrc
     echo 'export LIBGL_ALWAYS_INDIRECT=0' >> ~/.bashrc
     source ~/.bashrc
     echo "WSL configurations applied." | tee -a "$LOG_FILE"
@@ -146,8 +146,10 @@ install_repo_tool() {
     if [ "$ACTION" != "uninstall" ]; then
         log_step "$1" "$2"
         if [ ! -d "$3" ]; then
-            cd ~
-            eval "$4"
+            cd ~ 
+            eval <<"EOF"
+$4
+EOF
         else
             echo "$3 already exists, skipping installation." | tee -a "$LOG_FILE"
         fi
@@ -156,35 +158,63 @@ install_repo_tool() {
 }
 
 # Step 6: Install PX4 SITL
-install_repo_tool "6" "Installing PX4 SITL" "PX4-Autopilot" '
-    echo "export PATH=$PATH:/home/shival/.local/bin" >> ~/.bashrc 
+install_repo_tool "6" "Installing PX4 SITL" "PX4-Autopilot" <<EOF
+    # echo "export PATH=$PATH:/home/shival/.local/bin" >> ~/.bashrc 
     source ~/.bashrc
     pip install --upgrade numpy
-    git clone https://github.com/PX4/PX4-Autopilot.git || { echo "Error cloning PX4-Autopilot repository. Please check your internet connection and try again."; exit 1; } &&
+    # Check if git is already installed before cloning
+    if ! command -v git &> /dev/null; then 
+        sudo apt install -y git
+    fi
+    git clone https://github.com/PX4/PX4-Autopilot.git --recursive || { 
+        echo "Error cloning PX4-Autopilot repository. Please check your internet connection and try again."
+        exit 1
+    } 
     cd PX4-Autopilot &&
-    bash ./Tools/setup/ubuntu.sh -y &&
-    make px4_sitl_default gazebo
-'
+    bash ./Tools/setup/ubuntu.sh -y
+    # make px4_sitl_default gazebo
+EOF
 
 # Step 7: Install Ardupilot SITL and dependencies
-install_repo_tool "7" "Installing Ardupilot SITL and dependencies" "ardupilot" "
-    git clone https://github.com/ArduPilot/ardupilot.git || { echo "Error cloning ArduPilot repository. Please check your internet connection and try again."; exit 1; } &&
+install_repo_tool "7" "Installing Ardupilot SITL and dependencies" "ardupilot" <<EOF
+    # Check if git is already installed before cloning
+    if ! command -v git &> /dev/null; then 
+        sudo apt install -y git
+    fi
+    git clone https://github.com/ArduPilot/ardupilot.git --recursive || { 
+        echo "Error cloning ArduPilot repository. Please check your internet connection and try again."
+        exit 1
+    } &&
     cd ardupilot &&
     git checkout Copter-4.0.4 &&
-    git submodule update --init --recursive || { echo "Error updating submodules. Please check your internet connection and try again." && git config --global url.https://.insteadOf git:// && git submodule update --init --recursive; } &&
+    git submodule update --init --recursive || { 
+        echo "Error updating submodules. Trying with https instead of git..." 
+        git config --global url."https://".insteadOf git://
+        git submodule update --init --recursive || { 
+            echo "Error updating submodules even after switching to https. Please check your internet connection and try again."
+            exit 1
+        } 
+    } &&
     Tools/environment_install/install-prereqs-ubuntu.sh -y &&
     source ~/.profile &&
     cd ~/ardupilot/ArduCopter &&
     sim_vehicle.py -w
-"
+EOF
 
 # Step 8: Setup Gazebo and Ardupilot-Gazebo Plugin
-install_repo_tool "8" "Setting up Gazebo and Ardupilot-Gazebo Plugin" "ardupilot_gazebo" "
-    sudo sh -c 'echo \"deb http://packages.osrfoundation.org/gazebo/ubuntu-stable \$(lsb_release -cs) main\" > /etc/apt/sources.list.d/gazebo-stable.list' &&
+install_repo_tool "8" "Setting up Gazebo and Ardupilot-Gazebo Plugin" "ardupilot_gazebo" <<EOF
+    sudo sh -c 'echo "deb http://packages.osrfoundation.org/gazebo/ubuntu-stable $(lsb_release -cs) main" > /etc/apt/sources.list.d/gazebo-stable.list' &&
     wget http://packages.osrfoundation.org/gazebo.key -O - | sudo apt-key add - &&
     sudo apt update &&
     sudo apt-get install -y gazebo11 libgazebo11-dev &&
-    git clone https://github.com/khancyr/ardupilot_gazebo.git &&
+    # Check if git is already installed before cloning
+    if ! command -v git &> /dev/null; then 
+        sudo apt install -y git
+    fi
+    git clone https://github.com/khancyr/ardupilot_gazebo.git || { 
+        echo "Error cloning ardupilot_gazebo repository. Please check your internet connection and try again."
+        exit 1
+    } &&
     cd ardupilot_gazebo &&
     mkdir build && cd build &&
     cmake .. &&
@@ -193,15 +223,15 @@ install_repo_tool "8" "Setting up Gazebo and Ardupilot-Gazebo Plugin" "ardupilot
     echo 'source /usr/share/gazebo/setup.sh' >> ~/.bashrc &&
     echo 'export GAZEBO_MODEL_PATH=~/ardupilot_gazebo/models' >> ~/.bashrc &&
     source ~/.bashrc
-"
+EOF
 
 # Step 9: Install MAVROS, MAVLink, and IQ Sim
-install_repo_tool "9" "Installing MAVROS, MAVLink, and IQ Sim" "" "
+install_repo_tool "9" "Installing MAVROS, MAVLink, and IQ Sim" "" <<EOF
     sudo apt install -y ros-noetic-mavros ros-noetic-mavros-extras ros-noetic-mavlink
-"
+EOF
 
 # Step 10: Install QGroundControl
-install_repo_tool "10" "Installing QGroundControl" "" "
+install_repo_tool "10" "Installing QGroundControl" "" <<EOF
     if ! check_package "qgroundcontrol"; then
         sudo add-apt-repository ppa:qgroundcontrol/ppa -y &&
         sudo apt update &&
@@ -209,11 +239,4 @@ install_repo_tool "10" "Installing QGroundControl" "" "
     else
         echo "QGroundControl is already installed, skipping..." | tee -a "$LOG_FILE"
     fi
-"
-
-# Final logging
-echo "========================================" | tee -a "$LOG_FILE"
-echo "All steps completed successfully!" | tee -a "$LOG_FILE"
-echo "========================================"
-
-echo "Installation completed. Check the log file $LOG_FILE for details."
+EOF
