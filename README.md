@@ -130,3 +130,4 @@ To monitor telemetry data:
 - ArduPilot: [ArduPilot Official Site](https://ardupilot.org/)
 - QGroundControl: [QGroundControl Download](https://qgroundcontrol.com/)
 - MAVROS: [MAVROS Wiki](https://wiki.ros.org/mavros)
+- ROS in WSL2: [YouTube Tutorial](https://youtu.be/DW7l9LHdK5c?si=ltJt0esJWsJj9lDu)

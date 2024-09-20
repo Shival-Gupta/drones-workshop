@@ -16,7 +16,9 @@ check_package() {
         echo "$1 is installed." | tee -a "$LOG_FILE"
     else
         echo "Error: $1 is not installed!" | tee -a "$LOG_FILE"
+        return 1
     fi
+    return 0
 }
 
 # Function to check if a directory exists
@@ -25,7 +27,9 @@ check_directory() {
         echo "$1 exists." | tee -a "$LOG_FILE"
     else
         echo "Error: $1 does not exist!" | tee -a "$LOG_FILE"
+        return 1
     fi
+    return 0
 }
 
 # Clear previous log and start verification
@@ -89,9 +93,10 @@ done
 
 # Step 7: Verify QGroundControl installation
 log_step "7" "Verifying QGroundControl installation"
-check_directory "$HOME/QGroundControl.AppImage"
+check_package "qgroundcontrol"
 
 # Step 8: Check ROS workspace
+log_step "8" "Checking ROS workspace"
 if [ -d "$HOME/catkin_ws1" ]; then
     echo "ROS workspace is set up." | tee -a "$LOG_FILE"
 else
@@ -103,4 +108,4 @@ UBUNTU_VERSION=$(lsb_release -rs)
 echo "Ubuntu version: $UBUNTU_VERSION" | tee -a "$LOG_FILE"
 
 # Summary
-echo "Verification completed. Check $LOG_FILE for details."
+echo "Verification completed. Check $LOG_FILE for details." | tee -a "$LOG_FILE"
