@@ -1,32 +1,101 @@
 #!/bin/bash
 
-# Function to check the installation of a package
+# Log file location
+LOG_FILE="verify.log"
+
+# Function to log a step
+log_step() {
+    echo -e "\n========================================" | tee -a "$LOG_FILE"
+    echo "Step $1: $2" | tee -a "$LOG_FILE"
+    echo "========================================" | tee -a "$LOG_FILE"
+}
+
+# Function to check if a package is installed
 check_package() {
     if dpkg -l | grep -q "$1"; then
-        echo "$1 is installed."
+        echo "$1 is installed." | tee -a "$LOG_FILE"
     else
-        echo "$1 is not installed."
+        echo "Error: $1 is not installed!" | tee -a "$LOG_FILE"
     fi
 }
 
-# Log file
-LOG_FILE="installation_verification.log"
+# Function to check if a directory exists
+check_directory() {
+    if [ -d "$1" ]; then
+        echo "$1 exists." | tee -a "$LOG_FILE"
+    else
+        echo "Error: $1 does not exist!" | tee -a "$LOG_FILE"
+    fi
+}
 
-# Clear previous log
+# Clear previous log and start verification
 echo "Verification Log - $(date)" > "$LOG_FILE"
+echo "Starting verification process..." | tee -a "$LOG_FILE"
 
-# Check for essential packages
-echo "Checking essential packages..." | tee -a "$LOG_FILE"
-check_package "ros-noetic-desktop-full" | tee -a "$LOG_FILE"
-check_package "gazebo11" | tee -a "$LOG_FILE"
-check_package "python3-pip" | tee -a "$LOG_FILE"
-check_package "mavros" | tee -a "$LOG_FILE"
+# Step 1: Verify core development tools
+log_step "1" "Verifying core development tools"
+core_packages=(
+    git
+    python3
+    python3-pip
+    python3-dev
+    build-essential
+    cmake
+    g++
+    gdb
+    libeigen3-dev
+    libopencv-dev
+    libyaml-cpp-dev
+    python3-yaml
+    libboost-all-dev
+    libcurl4-openssl-dev
+    libxml2-dev
+    libbz2-dev
+)
 
-# Check ROS environment
-if [ -f ~/catkin_ws1/devel/setup.bash ]; then
+for package in "${core_packages[@]}"; do
+    check_package "$package"
+done
+
+# Step 2: Verify ROS Noetic installation
+log_step "2" "Verifying ROS Noetic installation"
+check_package "ros-noetic-desktop-full"
+
+# Step 3: Verify rosdep installation
+log_step "3" "Verifying rosdep installation"
+check_package "python3-rosdep"
+
+# Step 4: Verify project installations
+log_step "4" "Verifying PX4 and Ardupilot installations"
+check_directory "$HOME/PX4-Autopilot"
+check_directory "$HOME/ardupilot"
+
+# Step 5: Verify Gazebo installation
+log_step "5" "Verifying Gazebo installation"
+check_package "gazebo11"
+check_package "libgazebo11-dev"
+
+# Step 6: Verify MAVROS installation
+log_step "6" "Verifying MAVROS installation"
+mavros_packages=(
+    ros-noetic-mavros
+    ros-noetic-mavros-extras
+    ros-noetic-mavlink
+)
+
+for package in "${mavros_packages[@]}"; do
+    check_package "$package"
+done
+
+# Step 7: Verify QGroundControl installation
+log_step "7" "Verifying QGroundControl installation"
+check_directory "$HOME/QGroundControl.AppImage"
+
+# Step 8: Check ROS workspace
+if [ -d "$HOME/catkin_ws1" ]; then
     echo "ROS workspace is set up." | tee -a "$LOG_FILE"
 else
-    echo "ROS workspace is not set up." | tee -a "$LOG_FILE"
+    echo "Error: No valid ROS workspace found." | tee -a "$LOG_FILE"
 fi
 
 # Check Ubuntu version

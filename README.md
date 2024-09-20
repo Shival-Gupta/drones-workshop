@@ -1,43 +1,73 @@
-# Automated Drone Simulation Setup for Ubuntu 20.04
+# Automated Drone Simulation Setup for Ubuntu 20.04 (with/without WSL)
 
-This guide will help you set up a complete simulation environment for drones using PX4, Ardupilot, Gazebo, MAVROS, and IQ Sim with minimal human intervention.
-
-**Note:** If you are looking for the WSL2 setup guide, please visit: [WSL2 Setup Guide](https://shivalgupta.tech/drones-workshop/wsl/)
+This guide will help you set up a complete simulation environment for drones using PX4, Ardupilot, Gazebo, MAVROS, QGroundControl, and IQ Sim with minimal human intervention.
 
 ## Requirements
 
-1. Ubuntu 20.04 LTS (for ROS Noetic compatibility).
-2. Internet connection for downloading required packages.
+1. **Ubuntu 20.04 LTS** or Windows with WSL.
+2. An **internet connection** for downloading required packages.
+
+## Software Overview
+
+- **PX4**: A popular open-source flight control software for drones.
+- **Ardupilot**: A versatile open-source autopilot system supporting many vehicle types.
+- **Gazebo**: A 3D robotics simulator that integrates with PX4 and Ardupilot for SITL.
+- **MAVROS**: A ROS package that serves as a communication layer between ROS and MAVLink-compatible autopilots.
+- **QGroundControl**: A ground control station for drone operations.
+- **IQ Sim**: A simulation environment used with PX4 and Ardupilot to simulate different flight scenarios.
 
 ## Steps to Run the Setup Script
 
-### 1. Clone the Repository (if not done already)
+### Step 0. (Optional for WSL)
+Set the default version to WSL 2 and install Ubuntu 20.04:
+```bash
+wsl --set-default-version 2
+wsl --install -d Ubuntu-20.04
+```
 
-You need to get the `setup.sh` script. You can clone it using:
+### Step 1. Clone the Repository
+
+First, clone the repository to get access to the setup script:
 ```bash
 git clone https://github.com/Shival-Gupta/drones-workshop.git
 cd drones-workshop
 ```
 
-### 2. Run the `setup.sh` Script
+### Step 2. Run the `setup.sh` Script
 
-The script will automate the installation and setup process for ROS, PX4, Ardupilot, Gazebo, MAVROS, and IQ Sim.
+The `setup.sh` script automates the installation and setup process for ROS, PX4, Ardupilot, Gazebo, MAVROS, and IQ Sim.
 
-Run the script:
+Make the script executable and run it:
 ```bash
 chmod +x setup.sh
 ./setup.sh
 ```
 
-### 3. Launch PX4 SITL with Gazebo
+#### Options
+- **Default Installation**: `./setup.sh`
+- **Uninstall Packages**: `./setup.sh --uninstall`
+- **Reinstall Packages**: `./setup.sh --reinstall`
+- **Force Install**: `./setup.sh --force-install`
+- **Full Installation**: `./setup.sh --full-installation`
+- **WSL Configuration**: `./setup.sh --wsl`
 
-After the installation, you can run PX4 SITL (Software In The Loop) with Gazebo using the following commands:
+### Step 3. Run the Verification Script
+
+After installation, it's recommended to verify that everything is set up correctly:
+```bash
+chmod +x verify.sh
+./verify.sh
+```
+
+### Step 4. Launch PX4 SITL with Gazebo
+
+After the installation, you can run PX4 SITL (Software In The Loop) with Gazebo:
 ```bash
 cd ~/PX4-Autopilot
 make px4_sitl_default gazebo
 ```
 
-### 4. Launch Ardupilot SITL with Gazebo
+### Step 5. Launch Ardupilot SITL with Gazebo
 
 To run Ardupilot with Gazebo:
 1. Launch Gazebo with the Ardupilot-Gazebo plugin:
@@ -50,7 +80,7 @@ To run Ardupilot with Gazebo:
    sim_vehicle.py -v ArduCopter -f gazebo-iris --console
    ```
 
-### 5. Running MAVROS and IQ Sim
+### Step 6. Running MAVROS and IQ Sim
 
 To launch IQ Sim and get telemetry data from the drone:
 1. In one terminal, launch the runway simulation:
@@ -66,9 +96,8 @@ To launch IQ Sim and get telemetry data from the drone:
    ```bash
    ./QGroundControl.AppImage
    ```
-4. Plan a mission in QGroundControl, and execute it.
 
-### 6. Using MAVROS and Checking Telemetry Data
+### Step 7. Using MAVROS and Checking Telemetry Data
 
 To monitor telemetry data:
 1. Start MAVROS:
@@ -79,7 +108,7 @@ To monitor telemetry data:
    ```bash
    rostopic echo /mavros/global_position/local
    ```
-3. You can interact with MAVProxy to control the drone:
+3. Interact with MAVProxy to control the drone:
    ```bash
    mode guided
    arm throttle
@@ -93,9 +122,11 @@ To monitor telemetry data:
   ```bash
   source ~/.bashrc
   ```
+- Check the verification log (`verify.log`) for details about your installation status.
 
 ## Additional Information
 
 - PX4 Autopilot: [PX4 Official Site](https://px4.io/)
 - ArduPilot: [ArduPilot Official Site](https://ardupilot.org/)
 - QGroundControl: [QGroundControl Download](https://qgroundcontrol.com/)
+- MAVROS: [MAVROS Wiki](https://wiki.ros.org/mavros)
