@@ -156,6 +156,7 @@ install_repo_tool() {
 
 # Step 6: Install PX4 SITL
 install_repo_tool "6" "Installing PX4 SITL" "PX4-Autopilot" "
+    pip install --upgrade numpy
     git clone https://github.com/PX4/PX4-Autopilot.git &&
     cd PX4-Autopilot &&
     bash ./Tools/setup/ubuntu.sh -y &&
