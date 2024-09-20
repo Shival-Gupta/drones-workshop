@@ -150,78 +150,50 @@ fi
 install_repo_tool() {
     if [ "$ACTION" != "uninstall" ]; then
         log_step "$1" "$2"
-        if [ ! -d "$3" ] || [ -z "$3" ]; then # Check if directory exists OR if it's an empty string
+        if [ ! -d "$3" ] || [ -z "$3" ]; then 
             cd ~
             if [ "$VERBOSE" == "true" ]; then
-                set -x  # Enable verbose output if -x flag is provided
+                set -x 
             fi
-            # Capture output and run in background if possible
-            (eval "$4" > step_${1}_output.txt 2>&1 &)
-            
-            if [ "$VERBOSE" == "true" ]; then
-                set +x  # Disable verbose output after the eval block
-            fi
-
-            # Check for specific success criteria or timeout (adjust as needed)
-            if [ -n "$3" ]; then 
-                timeout 600 tail -f step_${1}_output.txt | grep -q "Installation of $3 failed" && {
-                    echo "Error: Installation of $3 failed. Check step_${1}_output.txt for details." | tee -a "$LOG_FILE"
-                    exit 1
-                }
+            eval "$4" # Execute commands directly, no background execution or timeout
+            # Check exit status of the eval command
+            if [ $? -ne 0 ]; then
+                echo "Error: Installation of $3 failed. Check the output above and the log file for details." | tee -a "$LOG_FILE"
+                exit 1
             fi
         else
             echo "$3 already exists, skipping installation." | tee -a "$LOG_FILE"
         fi
-        check_success "$1"
+        check_success "$1" 
     fi
 }
-
 
 # Step 6: Install PX4 SITL
 install_repo_tool "6" "Installing PX4 SITL" "PX4-Autopilot" <<EOF
     source ~/.bashrc
     pip install --upgrade numpy
-    # Check if git is already installed before cloning
-    if ! command -v git &> /dev/null; then 
-        sudo apt install -y git
+    sudo apt install -y git
+    # If PX4-Autopilot directory exists, remove it to ensure a clean installation
+    if [ -d "PX4-Autopilot" ]; then
+        rm -rf PX4-Autopilot
     fi
-    git clone https://github.com/PX4/PX4-Autopilot.git --recursive || { 
-        echo "Error cloning PX4-Autopilot repository. Please check your internet connection and try again."
-        exit 1
-    } 
+    git clone https://github.com/PX4/PX4-Autopilot.git --recursive 
     cd PX4-Autopilot &&
     bash ./Tools/setup/ubuntu.sh -y &&
-    # Run 'make' in the background and capture output
-    (make px4_sitl_default gazebo > make_output.txt 2>&1 &) 
-    # Check if 'make' completed successfully after a timeout (adjust as needed)
-    timeout 600 tail -f make_output.txt | grep -q "build completed" || { 
-        echo "Error: PX4 SITL build did not complete successfully within the timeout. Check make_output.txt for details." | tee -a "$LOG_FILE"
-        exit 1
-    }
+    make px4_sitl_default gazebo # Run 'make' directly, no background execution or timeout
 EOF
 
 # Step 7: Install Ardupilot SITL and dependencies
 install_repo_tool "7" "Installing Ardupilot SITL and dependencies" "ardupilot" <<EOF
-    # Check if git is already installed before cloning
-    if ! command -v git &> /dev/null; then 
-        sudo apt install -y git
+    sudo apt install -y git
+    # If ardupilot directory exists, remove it to ensure a clean installation
+    if [ -d "ardupilot" ]; then
+        rm -rf ardupilot
     fi
-    git clone https://github.com/ArduPilot/ardupilot.git --recursive || { 
-        echo "Error cloning ArduPilot repository. Please check your internet connection and try again."
-        exit 1
-    } 
-    # Ensure the ardupilot directory exists
-    mkdir -p ardupilot &&
+    git clone https://github.com/ArduPilot/ardupilot.git --recursive 
     cd ardupilot &&
     git checkout Copter-4.0.4 &&
-    git submodule update --init --recursive || { 
-        echo "Error updating submodules. Trying with https instead of git..." 
-        git config --global url."https://".insteadOf git://
-        git submodule update --init --recursive || { 
-            echo "Error updating submodules even after switching to https. Please check your internet connection and try again."
-            exit 1
-        } 
-    } &&
+    git submodule update --init --recursive || git config --global url."https://".insteadOf git:// && git submodule update --init --recursive 
     Tools/environment_install/install-prereqs-ubuntu.sh -y &&
     source ~/.profile &&
     cd ~/ardupilot/ArduCopter &&
@@ -234,23 +206,16 @@ install_repo_tool "8" "Setting up Gazebo and Ardupilot-Gazebo Plugin" "ardupilot
     wget http://packages.osrfoundation.org/gazebo.key -O - | sudo apt-key add - &&
     sudo apt update &&
     sudo apt-get install -y gazebo11 libgazebo11-dev &&
-    # Check if git is already installed before cloning
-    if ! command -v git &> /dev/null; then 
-        sudo apt install -y git
+    sudo apt install -y git
+    # If ardupilot_gazebo directory exists, remove it to ensure a clean installation
+    if [ -d "ardupilot_gazebo" ]; then
+        rm -rf ardupilot_gazebo
     fi
-    git clone https://github.com/khancyr/ardupilot_gazebo.git || { 
-        echo "Error cloning ardupilot_gazebo repository. Please check your internet connection and try again."
-        exit 1
-    } &&
+    git clone https://github.com/khancyr/ardupilot_gazebo.git
     cd ardupilot_gazebo &&
     mkdir build && cd build &&
     cmake .. &&
-    # Capture 'make' output and run in background
-    (make -j4 > make_output_8.txt 2>&1 &)
-    timeout 600 tail -f make_output_8.txt | grep -q "Error" && { 
-        echo "Error: Make failed in Step 8. Check make_output_8.txt for details." | tee -a "$LOG_FILE"
-        exit 1
-    }
+    make -j4 && 
     sudo make install &&
     echo 'source /usr/share/gazebo/setup.sh' >> ~/.bashrc &&
     echo 'export GAZEBO_MODEL_PATH=~/ardupilot_gazebo/models' >> ~/.bashrc &&
@@ -258,42 +223,16 @@ install_repo_tool "8" "Setting up Gazebo and Ardupilot-Gazebo Plugin" "ardupilot
 EOF
 
 # Step 9: Install MAVROS, MAVLink, and IQ Sim
-# No directory to check for, so pass an empty string as the third argument
 install_repo_tool "9" "Installing MAVROS, MAVLink, and IQ Sim" "" <<EOF
-    for i in {1..3}; do # Retry up to 3 times
-        if sudo apt install -y ros-noetic-mavros ros-noetic-mavros-extras ros-noetic-mavlink; then
-            break  # Exit the loop if successful
-        else
-            echo "Attempt $i failed. Retrying MAVROS installation..."
-            sleep 5  # Wait for a few seconds before retrying
-        fi
-    done
-    # Check if the packages were installed successfully
-    if ! dpkg -l | grep -q "ros-noetic-mavros ros-noetic-mavros-extras ros-noetic-mavlink"; then
-        echo "Error: Installation of MAVROS packages failed." | tee -a "$LOG_FILE"
-        exit 1
-    fi
+    sudo apt install -y ros-noetic-mavros ros-noetic-mavros-extras ros-noetic-mavlink
 EOF
 
 # Step 10: Install QGroundControl
-# No directory to check for, so pass an empty string as the third argument
 install_repo_tool "10" "Installing QGroundControl" "" <<EOF
     if ! check_package "qgroundcontrol"; then
-        for i in {1..3}; do
-            if sudo add-apt-repository ppa:qgroundcontrol/ppa -y &&
-               sudo apt update &&
-               sudo apt install -y qgroundcontrol; then
-                break
-            else
-                echo "Attempt $i failed. Retrying QGroundControl installation..."
-                sleep 5
-            fi
-        done
-        # Check if QGroundControl was installed successfully
-        if ! check_package "qgroundcontrol"; then
-            echo "Error: Installation of QGroundControl failed." | tee -a "$LOG_FILE"
-            exit 1
-        fi
+        sudo add-apt-repository ppa:qgroundcontrol/ppa -y &&
+        sudo apt update &&
+        sudo apt install -y qgroundcontrol
     else
         echo "QGroundControl is already installed, skipping..." | tee -a "$LOG_FILE"
     fi
